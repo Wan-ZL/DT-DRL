@@ -1,8 +1,8 @@
 '''
-Project     ：DT-DRL 
-File        ：discret_env.py
-Author      ：Zelin Wan
-Date        ：11/7/23
+Project     : DT-DRL 
+File        : discret_env.py
+Author      : Zelin Wan
+Date        : 11/7/23
 Description : make gym environment observation discrete. For example, make cartpole's cart position [-2, -1, 0, 1, 2]
 '''
 

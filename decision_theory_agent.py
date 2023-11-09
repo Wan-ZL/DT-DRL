@@ -1,8 +1,8 @@
 '''
-Project     ：DT-DRL 
-File        ：decision_theory_agent.py
-Author      ：Zelin Wan
-Date        ：11/8/23
+Project     : DT-DRL 
+File        : decision_theory_agent.py
+Author      : Zelin Wan
+Date        : 11/8/23
 Description : The decision theory agent for the cartpole environment
 '''
 
@@ -82,6 +82,9 @@ class DecisionTheoryCartpoleAgent:
             state_utility = self.utility_function(new_state)
             expected_utility += state_prob * state_utility
         return expected_utility
+
+
+
 
     def get_action(self, obs):
         max_utility = 0
