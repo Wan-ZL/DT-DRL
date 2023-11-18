@@ -12,10 +12,13 @@ from gymnasium.envs.classic_control import CartPoleEnv
 
 
 class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
-    def __init__(self):
-        super().__init__()
-        self.env_name = 'CartPole'
-        self.discrete_version = 7  # choose from [1, 2, 3, 4, 5, 6, 7, 8]
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.env_name = 'CustomCartPole'
+        self.discrete_version = 0  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
+
+        if self.discrete_version == 0:
+            return
 
         # Dynamically call the corresponding initialization method
         self.observation_discretization = {}  # Initialize an empty dictionary
@@ -25,6 +28,9 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
             getattr(self, init_method_name)()
         else:
             raise Exception('Invalid discrete environment version')
+
+        # change observation space to discrete
+        self.observation_space = gym.spaces.MultiDiscrete([len(discrete_array) for discrete_array in self.observation_discretization.values()])
 
     # ================== Below are different versions of discretization (begin) ==================
     def discrete_init_ver_1(self):
@@ -171,14 +177,26 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
         # Return the discrete value that is closest to the continuous value
         return discrete_val_array[index_of_smallest_difference]
 
-    def step(self, action):
+    def step(self, action, **kwargs):
         '''
         Override the step function to discretize the observation
         :param action:
         :return:
         '''
-        obs, reward, terminated, truncated, info = super().step(action)  # call the original step function
-        # Discretize the observation
-        obs = self.discrete_obs(obs)
+        obs, reward, terminated, truncated, info = super().step(action, **kwargs)   # call the original step function
 
-        return obs, reward, terminated, truncated, info
+        # Discretize the observation
+        if self.discrete_version != 0:
+            obs = self.discrete_obs(obs)
+
+        return obs, reward, terminated, False, info
+
+    def reset(self, **kwargs):
+        '''
+        Override the reset function to reset the accumulated reward
+        :param kwargs:
+        :return:
+        '''
+        return super().reset(**kwargs)
+
+
