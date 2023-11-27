@@ -10,23 +10,31 @@ import numpy as np
 from collections import defaultdict
 
 
-class DecisionTheoryCartpoleAgent:
+class DecisionTheoryAgent:
     def __init__(self, env):
         self.env = env
         # Create a dictionary to store the transition count, default value is 2
         self.obs_action_count_dict = defaultdict(lambda: 2)  # input is old_state + action
         self.transition_count_dict = defaultdict(lambda: 2)  # input is old_state + action + new_state
+        # self.obs_reward_list_dict  = defaultdict(lambda: [10])  # input is old_state + action
+        self.pre_calc_utility_for_all_states()
 
-    def update_observation(self, obs, action, obs_):
+    def update_observation(self, obs, action, new_obs, reward):
         '''
         Update the observation
         :param obs: old state
         :param action: action
-        :param obs_: new state
+        :param new_obs: new state
+        :param reward: reward
         :return:
         '''
         self.update_obs_action_count_dict(obs, action)
-        self.update_transition_count_dict(obs, action, obs_)
+        self.update_transition_count_dict(obs, action, new_obs)
+        # self.update_obs_reward_dict(obs, reward)
+
+    # def update_obs_reward_dict(self, obs, reward):
+    #     temp_key = tuple(obs)
+    #     self.obs_reward_list_dict[temp_key].append(reward)
 
     def update_obs_action_count_dict(self, obs, action):
         '''
@@ -39,19 +47,19 @@ class DecisionTheoryCartpoleAgent:
         temp_key = (tuple(obs), action)  # convert the observation to tuple to be hashable
         self.obs_action_count_dict[temp_key] += 1
 
-    def update_transition_count_dict(self, obs, action, obs_):
+    def update_transition_count_dict(self, obs, action, new_obs):
         '''
         Update the transition count dictionary
         :param obs:
         :param action:
-        :param obs_:
+        :param new_obs:
         :return:
         '''
         # Update the transition count dictionary
-        temp_key = (tuple(obs), action, tuple(obs_))
+        temp_key = (tuple(obs), action, tuple(new_obs))
         self.transition_count_dict[temp_key] += 1
 
-    def utility_function(self, obs):
+    def utility_function_for_CustomCartPole(self, obs):
         '''
         Calculate the utility of the observation
         :param obs:
@@ -67,6 +75,46 @@ class DecisionTheoryCartpoleAgent:
 
         return utility
 
+    def utility_function_for_CustomPendulum(self, obs, action):
+        # Calculate the utility of the observation
+
+        # following Eq. \ref{eq: pendulum-utility-version-1}
+        # alpha = 0.01
+        # x_preference = obs[0]
+        # y_preference = abs(obs[1])
+        # ang_vel_preference = abs(obs[2]) # make angular velocity less impact on the utility
+        # utility = x_preference - y_preference - (alpha * ang_vel_preference)
+
+        # following Eq. \ref{eq: pendulum-utility-version-2}
+        # x = obs[0]
+        # y = obs[1]
+        # ang_vel = obs[2]
+        # if x <= 0:
+        #     utility = abs(ang_vel)
+        # else:
+        #     utility = 8 - abs(ang_vel)
+
+        # following equation in pendulum documentation
+        # theta = np.arccos(obs[0])
+        # reward = -(theta ** 2 + 0.1 * obs[2] ** 2)
+        # utility = reward
+        utility = self.utility_reward_dict[(tuple(obs), action)]    # this following the equation \ref{eq: pendulum-utility-version-3}
+        # print("utility_reward_dict: ", self.utility_reward_dict)
+
+        return utility
+
+    def pre_calc_utility_for_all_states(self):
+        if self.env.env_name == 'CustomPendulum':
+            self.utility_reward_dict = defaultdict(lambda: 0)
+            for state in self.env.all_state_combinations:
+                for action in range(self.env.action_space.n):
+                    theta = np.arccos(state[0])
+                    self.utility_reward_dict[(tuple(state), action)] = -((theta ** 2) + 0.1 * (state[2] ** 2)) + 0.001 * (self.env.get_action_torque(action) ** 2)
+        else:
+            raise Exception('pre_calc_utility_for_all_states function only support CustomPendulum environment')
+
+
+
     def expected_utility_function(self, obs, action):
         '''
         Calculate the expected utility. Following equation: EU(s, a) = \sum_{s'} P(s'|s, a) \times U(s')
@@ -75,20 +123,39 @@ class DecisionTheoryCartpoleAgent:
         :return:
         '''
         expected_utility = 0
+        # print("self.env.all_state_combinations: ", self.env.all_state_combinations)
         for new_state in self.env.all_state_combinations:
             state_prob = self.transition_count_dict[(tuple(obs), action, tuple(new_state))] / \
                          self.obs_action_count_dict[(tuple(obs), action)]
-            state_utility = self.utility_function(new_state)
+
+            if self.env.env_name == 'CustomCartPole':
+                state_utility = self.utility_function_for_CustomCartPole(new_state)
+            elif self.env.env_name == 'CustomPendulum':
+                state_utility = self.utility_function_for_CustomPendulum(new_state, action)
+            else:
+                raise Exception('Unknown environment name')
+
             expected_utility += state_prob * state_utility
+            # expected_utility = state_utility
         return expected_utility
 
     def get_action(self, obs):
-        max_utility = 0
-        best_action = 0
+        utility_list = np.array([])
         for action in range(self.env.action_space.n):
             utility = self.expected_utility_function(obs, action)
-            if utility > max_utility:
-                max_utility = utility
-                best_action = action
+            utility_list = np.append(utility_list, utility)
+
+        # min-max normalization and convert to probability
+        min_utility = min(utility_list)
+        max_utility = max(utility_list)
+        if min_utility != max_utility:
+            normalized_utility_list = (utility_list - min_utility) / (max_utility - min_utility)
+        else:
+            normalized_utility_list = utility_list + 0.001  # add a small number to avoid all zero utility
+
+        action_prob = normalized_utility_list / sum(normalized_utility_list)
+
+        # select one action
+        best_action = np.random.choice(self.env.action_space.n, p=action_prob)
 
         return best_action

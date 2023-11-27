@@ -15,7 +15,7 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.env_name = 'CustomCartPole'
-        self.discrete_version = 0  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
+        self.discrete_version = 7  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
 
         if self.discrete_version == 0:
             return
@@ -190,13 +190,5 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
             obs = self.discrete_obs(obs)
 
         return obs, reward, terminated, False, info
-
-    def reset(self, **kwargs):
-        '''
-        Override the reset function to reset the accumulated reward
-        :param kwargs:
-        :return:
-        '''
-        return super().reset(**kwargs)
 
 
