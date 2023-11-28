@@ -11,10 +11,10 @@ from gymnasium.envs.classic_control import PendulumEnv
 
 
 class CustomPendulumEnv(PendulumEnv):
-    def __init__(self, env_discrete_version):
-        super().__init__()
+    def __init__(self, env_discrete_version=0, **kwargs):
+        super().__init__(**kwargs)
         self.env_name = 'CustomPendulum'
-        self.discrete_version = 2 if env_discrete_version is None else env_discrete_version  # choose from [0, 1]. 0 means original continuous environment.
+        self.discrete_version = env_discrete_version  # choose from [0, 1]. 0 means original continuous environment.
         self.g = 9.81  # change gravity to 9.81
         self.max_step = 500
         self.step_count = 0
@@ -130,6 +130,7 @@ class CustomPendulumEnv(PendulumEnv):
         self.step_count += 1
         if self.step_count >= self.max_step:
             terminated = True
+            truncated = True
 
         # Discretize the observation
         if self.discrete_version != 0:

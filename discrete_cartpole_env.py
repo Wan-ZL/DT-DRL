@@ -12,11 +12,13 @@ from gymnasium.envs.classic_control import CartPoleEnv
 
 
 class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
-    def __init__(self, **kwargs):
+    def __init__(self, env_discrete_version=0, **kwargs):
         super().__init__(**kwargs)
         self.env_name = 'CustomCartPole'
-        self.discrete_version = 7  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
-
+        self.discrete_version = env_discrete_version  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
+        self.gravity = 9.81  # change gravity to 9.81
+        self.max_step = 500
+        self.step_count = 0
         if self.discrete_version == 0:
             return
 
@@ -184,11 +186,29 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
         :return:
         '''
         obs, reward, terminated, truncated, info = super().step(action, **kwargs)   # call the original step function
+        self.step_count += 1
+        if self.step_count >= self.max_step:
+            terminated = True
+            truncated = True
 
         # Discretize the observation
         if self.discrete_version != 0:
             obs = self.discrete_obs(obs)
 
-        return obs, reward, terminated, False, info
+        return obs, reward, terminated, truncated, info
+
+    def reset(self, **kwargs):
+        '''
+        Override the reset function to discretize the observation
+        :param action:
+        :return:
+        '''
+        obs, info = super().reset(**kwargs)
+        self.step_count = 0
+        # Discretize the observation
+        if self.discrete_version != 0:
+            obs = self.discrete_obs(obs)
+
+        return obs, info
 
 

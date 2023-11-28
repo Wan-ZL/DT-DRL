@@ -79,11 +79,11 @@ class DecisionTheoryAgent:
         # Calculate the utility of the observation
 
         # following Eq. \ref{eq: pendulum-utility-version-1}
-        # alpha = 0.01
-        # x_preference = obs[0]
-        # y_preference = abs(obs[1])
-        # ang_vel_preference = abs(obs[2]) # make angular velocity less impact on the utility
-        # utility = x_preference - y_preference - (alpha * ang_vel_preference)
+        weight = 0.01
+        x_preference = obs[0]
+        y_preference = abs(obs[1])
+        ang_vel_preference = abs(obs[2]) # make angular velocity less impact on the utility
+        utility = x_preference - y_preference - (weight * ang_vel_preference)
 
         # following Eq. \ref{eq: pendulum-utility-version-2}
         # x = obs[0]
@@ -95,11 +95,7 @@ class DecisionTheoryAgent:
         #     utility = 8 - abs(ang_vel)
 
         # following equation in pendulum documentation
-        # theta = np.arccos(obs[0])
-        # reward = -(theta ** 2 + 0.1 * obs[2] ** 2)
-        # utility = reward
-        utility = self.utility_reward_dict[(tuple(obs), action)]    # this following the equation \ref{eq: pendulum-utility-version-3}
-        # print("utility_reward_dict: ", self.utility_reward_dict)
+        # utility = self.utility_reward_dict[(tuple(obs), action)]    # this following the equation \ref{eq: pendulum-utility-version-3}
 
         return utility
 
@@ -111,7 +107,7 @@ class DecisionTheoryAgent:
                     theta = np.arccos(state[0])
                     self.utility_reward_dict[(tuple(state), action)] = -((theta ** 2) + 0.1 * (state[2] ** 2)) + 0.001 * (self.env.get_action_torque(action) ** 2)
         else:
-            raise Exception('pre_calc_utility_for_all_states function only support CustomPendulum environment')
+            print("No need to pre-calculate the utility for this environment")
 
 
 
@@ -149,9 +145,11 @@ class DecisionTheoryAgent:
         min_utility = min(utility_list)
         max_utility = max(utility_list)
         if min_utility != max_utility:
-            normalized_utility_list = (utility_list - min_utility) / (max_utility - min_utility)
+            # min-max normalization to [0.01, 0.99]
+            normalized_utility_list = (utility_list - min_utility) / (max_utility - min_utility) * 0.98 + 0.01
         else:
-            normalized_utility_list = utility_list + 0.001  # add a small number to avoid all zero utility
+            # if all the utility are the same, then provide a uniform distribution
+            normalized_utility_list = np.ones(len(utility_list))
 
         action_prob = normalized_utility_list / sum(normalized_utility_list)
 

@@ -17,6 +17,7 @@ from decision_theory_agent import DecisionTheoryAgent
 from torch.utils.tensorboard import SummaryWriter
 from stable_baselines3 import DQN, PPO
 from stable_baselines3.common.callbacks import BaseCallback
+from continuous_cartpole import ContinuousCartPoleEnv
 
 
 def writer_log_scalar(writer, accumulated_reward, action_count_per_episode, episode, agent_name):
@@ -78,11 +79,21 @@ class TensorboardCallback(BaseCallback):
         return True
 
 
-def run_one_simulation(agent_name, env_discrete_version, max_episode, max_step):
+def run_one_simulation(agent_name, env_discrete_version, env_name, max_episode, max_step):
     # env = gym.make('CartPole-v1', render_mode='human')
     # env = gym.make('CartPole-v1'); env.env_name = 'OrignialCartPole'; env.discrete_version = 0
-    # env = CustomCartPoleEnv()
-    env = CustomPendulumEnv(env_discrete_version)
+    if env_name == 'CustomCartPole':
+        env = CustomCartPoleEnv(env_discrete_version)
+    elif env_name == 'CustomPendulum':
+        env = CustomPendulumEnv(env_discrete_version)
+    else:
+        raise Exception('Invalid environment name')
+    env = ContinuousCartPoleEnv()   # this is a test
+    env.env_name = 'ContinuousCartPole'
+    env.discrete_version = 0
+    # env.render_mode = 'human'
+
+    print("env", env)
 
     # create tensorboard writer
     data_path = './data/' + env.env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env.discrete_version)
@@ -125,12 +136,11 @@ def run_one_simulation(agent_name, env_discrete_version, max_episode, max_step):
         truncated = False
         accumulated_reward = 0
         action_count_per_episode = np.zeros(env.action_space.n)
-        while not terminated or truncated:
+        while not terminated or not truncated:
 
             if agent_name == 'DT':
                 action = DT_agent.get_action(obs)
             elif agent_name == 'DQN':
-                # print("obs: ", obs)
                 action, _states = DQN_model.predict(obs, deterministic=True)
             elif agent_name == 'PPO':
                 action, _states = PPO_model.predict(obs, deterministic=True)
@@ -142,6 +152,7 @@ def run_one_simulation(agent_name, env_discrete_version, max_episode, max_step):
             action_count_per_episode[action] += 1
 
             new_obs, reward, terminated, truncated, info = env.step(action)
+
             accumulated_reward += reward
 
             # DT agent observe the environment and update the belief
@@ -150,6 +161,9 @@ def run_one_simulation(agent_name, env_discrete_version, max_episode, max_step):
 
             # update the observation
             obs = new_obs
+
+            if terminated or truncated:
+                break
 
         print(f'Episode {episode} ended with accumulated reward {accumulated_reward}')
         # save to tensorboard
@@ -167,27 +181,27 @@ def run_one_simulation(agent_name, env_discrete_version, max_episode, max_step):
 
 
 if __name__ == '__main__':
-
     # configure the simulation
     number_of_simulation = 10
-    env_discrete_version_set = [1, 2, 3]  # check discrete_cartpole_env.py and discrete_pendulum_env.py for the version number
+    env_discrete_version_set = [1, 2, 3, 4, 5, 6, 7, 8]  # check discrete_cartpole_env.py and discrete_pendulum_env.py for the version number
     max_episode = 500
     max_step = 250000  # SB3 agent uses max_step to terminate the training. Change this value to match the max_episode
-    agent_name_set = ['PPO'] # ['DT', 'random', 'DQN', 'PPO', 'A2C']  # choose agent from ['DT', 'random', 'DQN', 'PPO', 'A2C']
+    agent_name_set = ['DT', 'random'] # ['DT', 'random', 'DQN', 'PPO', 'A2C']  # choose agent from ['DT', 'random', 'DQN', 'PPO', 'A2C']
+    env_name = 'CustomCartPole'  # choose environment from 'CustomCartPole', 'CustomPendulum'
 
     # single run test
-    # run_one_simulation('DQN', 1, max_episode, max_step)
+    run_one_simulation('PPO', 0, env_name, max_episode, max_step)
 
-    for agent_name in agent_name_set:
-        for env_discrete_version in env_discrete_version_set:
-            print("run simulation: ", agent_name, env_discrete_version)
-            # run the simulation in parallel, change the number of processes to match the number of CPU cores
-            pool = mp.Pool(mp.cpu_count())
-            for i in range(number_of_simulation):
-                time.sleep(2)
-                print("run simulation: ", i)
-                pool.apply_async(run_one_simulation, args=(agent_name, env_discrete_version, max_episode, max_step))
-            pool.close()
-            pool.join()
-            print("simulation finished: ", agent_name, env_discrete_version)
+    # for agent_name in agent_name_set:
+    #     for env_discrete_version in env_discrete_version_set:
+    #         print("run simulation: ", agent_name, env_discrete_version)
+    #         # run the simulation in parallel, change the number of processes to match the number of CPU cores
+    #         pool = mp.Pool(mp.cpu_count())
+    #         for i in range(number_of_simulation):
+    #             time.sleep(2)
+    #             print("run simulation: ", i)
+    #             pool.apply_async(run_one_simulation, args=(agent_name, env_discrete_version, env_name, max_episode, max_step))
+    #         pool.close()
+    #         pool.join()
+    #         print("simulation finished: ", agent_name, env_discrete_version)
 
