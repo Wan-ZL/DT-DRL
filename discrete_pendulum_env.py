@@ -11,9 +11,10 @@ from gymnasium.envs.classic_control import PendulumEnv
 
 
 class CustomPendulumEnv(PendulumEnv):
-    def __init__(self, env_discrete_version=0, **kwargs):
+    def __init__(self, env_discrete_version=0, fix_seed=None, **kwargs):
         super().__init__(**kwargs)
         self.env_name = 'CustomPendulum'
+        self.fix_seed = fix_seed
         self.discrete_version = env_discrete_version  # choose from [0, 1]. 0 means original continuous environment.
         self.g = 9.81  # change gravity to 9.81
         self.max_step = 500
@@ -135,6 +136,7 @@ class CustomPendulumEnv(PendulumEnv):
         # Discretize the observation
         if self.discrete_version != 0:
             obs = self.discrete_obs(obs)
+            info['discrete_obs'] = obs
             obs = self.mapping_observations(obs)
 
         return obs, reward, terminated, truncated, info
@@ -145,7 +147,7 @@ class CustomPendulumEnv(PendulumEnv):
         :param kwargs:
         :return:
         '''
-        obs, info = super().reset(**kwargs)
+        obs, info = super().reset(seed=self.fix_seed, **kwargs)
         self.step_count = 0
         # Discretize the observation
         if self.discrete_version != 0:

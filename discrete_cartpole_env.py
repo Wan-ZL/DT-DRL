@@ -2,23 +2,26 @@
 Project     : DT-DRL 
 File        : discrete_cartpole_env.py
 Author      : Zelin Wan
-Date        : 11/7/23
-Description : Make cartpole gym environment discrete. For example, make cartpole's cart position [-2, -1, 0, 1, 2]
+Date        : 11/27/23
+Description : 
 '''
-
+import copy
 import gymnasium as gym
 import numpy as np
-from gymnasium.envs.classic_control import CartPoleEnv
+from continuous_cartpole import ContinuousCartPoleEnv
 
 
-class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
-    def __init__(self, env_discrete_version=0, **kwargs):
+class CustomCartPoleEnv(ContinuousCartPoleEnv):  # inherit from Gym CartPoleEnv
+    def __init__(self, env_discrete_version=0, fix_seed=None, **kwargs):
         super().__init__(**kwargs)
         self.env_name = 'CustomCartPole'
         self.discrete_version = env_discrete_version  # choose from [0, 1, 2, 3, 4, 5, 6, 7, 8]. 0 means original continuous environment.
+        self.fix_seed = fix_seed    # fix the seed for reproducibility
         self.gravity = 9.81  # change gravity to 9.81
         self.max_step = 500
         self.step_count = 0
+        # self.render_mode='human'  # uncomment this line to render the environment
+
         if self.discrete_version == 0:
             return
 
@@ -31,137 +34,208 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
         else:
             raise Exception('Invalid discrete environment version')
 
+        # convert all elements in self.observation_discretization to np.float32
+        for key, value in self.observation_discretization.items():
+            self.observation_discretization[key] = np.array(value, dtype=np.float32)
+
+        # change action space to discrete
+        self.action_space = gym.spaces.Discrete(len(self.action_discrete))
         # change observation space to discrete
-        self.observation_space = gym.spaces.MultiDiscrete([len(discrete_array) for discrete_array in self.observation_discretization.values()])
+        self.observation_space = gym.spaces.MultiDiscrete(
+            [len(discrete_array) for discrete_array in self.observation_discretization.values()])
+
+        self.all_state_combinations = np.array(np.meshgrid(*self.observation_discretization.values())).T.reshape(-1,
+                                                                                                                 len(self.observation_discretization))
+        self.obs_max_value = np.array(
+            [np.max(discrete_array) for discrete_array in self.observation_discretization.values()])
+        # print("action_space: ", self.action_space)
+        # print("observation_space: ", self.observation_space)
 
     # ================== Below are different versions of discretization (begin) ==================
+
     def discrete_init_ver_1(self):
-        '''
-        This environment version discretize all 4 observations. Discrete 1 or 0.1 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2, -1, 0, 1, 2])
-        self.cart_velocity_discret = np.array([-2, -1, 0, 1, 2])
-        self.pole_angle_discret = np.array([-0.2, -0.1, 0, 0.1, 0.2])
-        self.pole_angle_vel_discret = np.array([-0.2, -0.1, 0, 0.1, 0.2])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret, self.cart_velocity_discret,
-                                                           self.pole_angle_discret,
-                                                           self.pole_angle_vel_discret)).T.reshape(-1, 4)
-        self.obs_max_value = np.array([2, 2, 0.2, 0.2])
+        # Discretize the action space
+        self.action_discrete = np.array([-3, 3])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
         self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
                                            2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_2(self):
-        '''
-        This environment version discretize cart position and pole angle only. Discrete 1 or 0.1 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2, -1, 0, 1, 2])
-        self.pole_angle_discret = np.array([-0.2, -0.1, 0, 0.1, 0.2])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret,
-                                                           self.pole_angle_discret)).T.reshape(-1, 2)
-        self.obs_max_value = np.array([2, 0.2])
+        # Discretize the action space
+        self.action_discrete = np.array([-5, 5])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
-        self.observation_discretization = {0: self.cart_position_discret, 2: self.pole_angle_discret}
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_3(self):
-        '''
-        This environment version discretize all 4 observations. Discrete 0.5 or 0.05 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2])
-        self.cart_velocity_discret = np.array([-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2])
-        self.pole_angle_discret = np.array([-0.2, -0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2])
-        self.pole_angle_vel_discret = np.array([-0.2, -0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret, self.cart_velocity_discret,
-                                                           self.pole_angle_discret,
-                                                           self.pole_angle_vel_discret)).T.reshape(-1, 4)
-        self.obs_max_value = np.array([2, 2, 0.2, 0.2])
+        # Discretize the action space
+        self.action_discrete = np.array([-7, 7])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
         self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
                                            2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_4(self):
-        '''
-        This environment version discretize cart position and pole angle only. Discrete 0.5 or 0.05 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2])
-        self.pole_angle_discret = np.array([-0.2, -0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret,
-                                                           self.pole_angle_discret)).T.reshape(-1, 2)
-        self.obs_max_value = np.array([2, 0.2])
+        # Discretize the action space
+        self.action_discrete = np.array([-10, 10])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
-        self.observation_discretization = {0: self.cart_position_discret, 2: self.pole_angle_discret}
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_5(self):
-        '''
-        This environment version discretize all 4 observations. Discrete 0.8 or 0.07 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2.4, -1.6, -0.8, 0, 0.8, 1.6, 2.4])
-        self.cart_velocity_discret = np.array([-2.4, -1.6, -0.8, 0, 0.8, 1.6, 2.4])
-        self.pole_angle_discret = np.array([-0.21, -0.14, -0.07, 0, 0.07, 0.14, 0.21])
-        self.pole_angle_vel_discret = np.array([-0.21, -0.14, -0.07, 0, 0.07, 0.14, 0.21])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret, self.cart_velocity_discret,
-                                                           self.pole_angle_discret,
-                                                           self.pole_angle_vel_discret)).T.reshape(-1, 4)
-        self.obs_max_value = np.array([2.4, 2.4, 0.21, 0.21])
+        # Discretize the action space
+        self.action_discrete = np.array([-3, 0, 3])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
         self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
                                            2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_6(self):
-        '''
-        This environment version discretize all 4 observations. Discrete 1.2 or 0.105 each observation.
-        :return:
-        '''
-        self.cart_position_discret = np.array([-2.4, -1.2, 0, 1.2, 2.4])
-        self.cart_velocity_discret = np.array([-2.4, -1.2, 0, 1.2, 2.4])
-        self.pole_angle_discret = np.array([-0.21, -0.105, 0, 0.105, 0.21])
-        self.pole_angle_vel_discret = np.array([-0.21, -0.105, 0, 0.105, 0.21])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret, self.cart_velocity_discret,
-                                                           self.pole_angle_discret,
-                                                           self.pole_angle_vel_discret)).T.reshape(-1, 4)
-        self.obs_max_value = np.array([2.4, 2.4, 0.21, 0.21])
+        # Discretize the action space
+        self.action_discrete = np.array([-5, 0, 5])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
         self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
                                            2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_7(self):
-        '''
-        This environment version discretize all 4 observations. Discrete 2.4 or 0.21 each observation.
-        :return:
-        '''
+        # Discretize the action space
+        self.action_discrete = np.array([-7, 0, 7])
+        # Discretize the observation space
         self.cart_position_discret = np.array([-2.4, 0, 2.4])
         self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
         self.pole_angle_discret = np.array([-0.21, 0, 0.21])
         self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret, self.cart_velocity_discret,
-                                                           self.pole_angle_discret,
-                                                           self.pole_angle_vel_discret)).T.reshape(-1, 4)
-        self.obs_max_value = np.array([2.4, 2.4, 0.21, 0.21])
         # Set up the mapping
         self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
                                            2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
 
     def discrete_init_ver_8(self):
-        '''
-        This environment version discretize cart position and pole angle only. Discrete 2.4 or 0.21 each observation.
-        :return:
-        '''
+        # Discretize the action space
+        self.action_discrete = np.array([-10, 0, 10])
+        # Discretize the observation space
         self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
         self.pole_angle_discret = np.array([-0.21, 0, 0.21])
-        self.all_state_combinations = np.array(np.meshgrid(self.cart_position_discret,
-                                                           self.pole_angle_discret)).T.reshape(-1, 2)
-        self.obs_max_value = np.array([2.4, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
         # Set up the mapping
-        self.observation_discretization = {0: self.cart_position_discret, 2: self.pole_angle_discret}
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+    def discrete_init_ver_9(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-6, -2, 2, 6])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+    def discrete_init_ver_10(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-9, -3, 3, 9])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+    def discrete_init_ver_11(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-10, -6, -2, 2, 6, 10])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+
+    def discrete_init_ver_12(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-5, -3, -1, 1, 3, 5])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+    def discrete_init_ver_13(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-7, -5, -3, -1, 1, 3, 5, 7])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+    def discrete_init_ver_14(self):
+        # Discretize the action space
+        self.action_discrete = np.array([-9, -7, -5, -3, -1, 1, 3, 5, 7, 9])
+        # Discretize the observation space
+        self.cart_position_discret = np.array([-2.4, 0, 2.4])
+        self.cart_velocity_discret = np.array([-2.4, 0, 2.4])
+        self.pole_angle_discret = np.array([-0.21, 0, 0.21])
+        self.pole_angle_vel_discret = np.array([-0.21, 0, 0.21])
+        # Set up the mapping
+        self.observation_discretization = {0: self.cart_position_discret, 1: self.cart_velocity_discret,
+                                           2: self.pole_angle_discret, 3: self.pole_angle_vel_discret}
+
+
+
+
+
 
     def discrete_obs(self, obs):
         for i, discret_array in self.observation_discretization.items():
             obs[i] = self.map_to_closest_discrete(obs[i], discret_array)
+        return obs
+
+    def mapping_observations(self, obs):
+        # map the observation to 0 to n-1. For example, [-1.0, 0.0, 1.0] will be mapped to [0, 1, 2]
+        for obs_index, obs_value in enumerate(obs):
+            obs[obs_index] = np.where(self.observation_discretization[obs_index] == obs_value)[0][0]
         return obs
 
     # ========================== (end) ==========================
@@ -185,30 +259,41 @@ class CustomCartPoleEnv(CartPoleEnv):  # inherit from Gym CartPoleEnv
         :param action:
         :return:
         '''
-        obs, reward, terminated, truncated, info = super().step(action, **kwargs)   # call the original step function
+        # if action is a numpy array, get the first element
+        if isinstance(action, np.ndarray):
+            action = action[0]
+        # Convert the discrete action to continuous action
+        if self.discrete_version != 0:
+            action = np.array([self.action_discrete[action]])  # convert the discrete action to continuous action
+
+        obs, reward, terminated, truncated, info = super().step(action, **kwargs)  # call the original step function
         self.step_count += 1
         if self.step_count >= self.max_step:
             terminated = True
-            truncated = True
+            # truncated = True
 
         # Discretize the observation
         if self.discrete_version != 0:
             obs = self.discrete_obs(obs)
+            info['discrete_obs'] = copy.deepcopy(obs)
+            obs = self.mapping_observations(obs)
 
         return obs, reward, terminated, truncated, info
 
-    def reset(self, **kwargs):
+    def reset(self, seed=None, **kwargs):
         '''
         Override the reset function to discretize the observation
         :param action:
         :return:
         '''
-        obs, info = super().reset(**kwargs)
+
+        obs, info = super().reset(seed=self.fix_seed, **kwargs)
+        # print("obs from reset: ", obs)
         self.step_count = 0
         # Discretize the observation
         if self.discrete_version != 0:
             obs = self.discrete_obs(obs)
+            info['discrete_obs'] = copy.deepcopy(obs)
+            obs = self.mapping_observations(obs)
 
         return obs, info
-
-
