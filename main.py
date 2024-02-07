@@ -632,6 +632,7 @@ if __name__ == '__main__':
                         pool.apply_async(run_simulation, args=(agent_name, env_discrete_version, env_name, max_episode, max_step, fix_seeds[i], transfer_time_point))
                     pool.close()
                     pool.join()
+
                     print("simulation finished: ", agent_name, env_discrete_version)
 
                     # save running time (in second) to file
