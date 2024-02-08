@@ -217,13 +217,13 @@ bar_pattern = ["|", "\\", "/", ".", "-", "+", "*", "x", "o", "O"]
 linestyle_list = ["-", "--", "-.", ":", "solid", "dashed", "dashdot", "dotted"]
 default_colors = mpl.rcParams['axes.prop_cycle'].by_key()['color']
 # assign the color for each agent
-agent_color = {"DT": default_colors[0], "PPO_2": default_colors[1], "FPER_PPO": default_colors[2], "DT_PPO_3": default_colors[3], "IL_PPO": default_colors[4], "TL_PPO": default_colors[5]}
+agent_color = {"DT": default_colors[0], "PPO": default_colors[1], "FPER_PPO": default_colors[2], "DT_PPO": default_colors[3], "IL_PPO": default_colors[4], "TL_PPO": default_colors[5]}
 strategy_number = 8
 max_x_length = 60
 use_legend = False
 show_range_y = None # [-1.5, 1.5]
 tag2str = {"accumulated_reward": "Accumulated Reward"}
-agent2str = {"DT": "DT", "PPO_2": "PPO", "DT_PPO_3": "DT-guided PPO", "TL_PPO": "TL PPO", "FPER_PPO": "SE PPO", "IL_PPO": "IL PPO"}
+agent2str = {"DT": "DT", "PPO": "PPO", "DT_PPO": "DT-guided PPO", "TL_PPO": "TL PPO", "FPER_PPO": "SE PPO", "IL_PPO": "IL PPO"}
 
 if __name__ == '__main__':
     fix_seed = None
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
 
     tag_set = ["accumulated_reward"]
-    agent_name_set = ['DT', 'PPO_2', 'TL_PPO', 'FPER_PPO', 'DT_PPO_3'] # for SlightlyModifiedCartPole: ['DT', 'PPO_2', 'FPER_PPO', 'IL_PPO', 'DT_PPO_3']. For CustomMaze: ['DT', 'PPO_2', 'TL_PPO', 'FPER_PPO', 'DT_PPO_3']
+    agent_name_set = ['DT', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO'] # for SlightlyModifiedCartPole: ['DT', 'PPO', 'FPER_PPO', 'IL_PPO', 'DT_PPO']. For CustomMaze: ['DT', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO']
     env_name = 'CustomMaze'  # choose environment from 'SlightlyModifiedCartPole', 'CustomMaze'
     # show the figure of training process
     # for discrete_version in discrete_version_set:

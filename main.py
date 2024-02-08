@@ -11,14 +11,9 @@ import gymnasium as gym
 import numpy as np
 import multiprocessing as mp
 from datetime import datetime
-
 import torch
 
-from DT_PPO import DecisionTheoryGuidedPPOAgent
-from DT_PPO_3 import DecisionTheoryCombinedPPOAgent
-from BFS_PPO import BFSGuidedPPOAgent
-from discrete_cartpole_env import CustomCartPoleEnv
-from discrete_pendulum_env import CustomPendulumEnv
+from DT_PPO import DecisionTheoryCombinedPPOAgent
 from decision_theory_agent import DecisionTheoryAgent
 from maze_decision_theory_agent import MazeDecisionTheoryAgent
 from maze_BFS_agent import MazeBFSAgent
@@ -26,10 +21,9 @@ from maze_env import CustomMaze
 from FPER_PPO import FPERPPOAgent
 from gym_maze_2.envs.maze_env import MazeEnv
 from torch.utils.tensorboard import SummaryWriter
-from stable_baselines3 import DQN, PPO, A2C
+from stable_baselines3 import DQN, PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.utils import obs_as_tensor
-from continuous_cartpole_old import ContinuousCartPoleEnv
 from slightly_modified_cartpole import SlightlyModifiedCartPoleEnv
 
 
@@ -82,7 +76,7 @@ class TensorboardCallback(BaseCallback):
         # check if the episode is done
         episode_done = False
         # check if algorithm is PPO or A2C
-        class_name_list = ['PPO', 'A2C', 'DecisionTheoryGuidedPPOAgent']
+        class_name_list = ['DecisionTheoryGuidedPPOAgent']
         if self.model.__class__.__name__ in class_name_list:
             episode_done = self.locals.get('done')
         elif self.model.__class__.__name__ == 'DQN':
@@ -108,12 +102,8 @@ class TensorboardCallback(BaseCallback):
 def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_step, fix_seed, transfer_time_point=0):
     # env = gym.make('CartPole-v1', render_mode='human')
     # env = gym.make('CartPole-v1'); env.env_name = 'OrignialCartPole'; env.discrete_version = 0
-    if env_name == 'CustomCartPole':
-        env = CustomCartPoleEnv(env_discrete_version, fix_seed)
-    elif env_name == 'SlightlyModifiedCartPole':
+    if env_name == 'SlightlyModifiedCartPole':
         env = SlightlyModifiedCartPoleEnv(env_discrete_version, fix_seed)
-    elif env_name == 'CustomPendulum':
-        env = CustomPendulumEnv(env_discrete_version, fix_seed)
     elif env_name == 'CustomMaze':
         env = CustomMaze(env_discrete_version, fix_seed, enable_render=False)
         # env = CustomMaze(maze_size=(5, 5), fix_seed=fix_seed, enable_render=False)
@@ -149,10 +139,7 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
     BFS_agent = None
     DQN_model = None
     PPO_model = None
-    PPO_model_2 = None
-    A2C_model = None
     DT_PPO_model = None
-    BFS_PPO_model = None
     expert_PPO_model = None
     if agent_name == 'DT':
         if env_name == 'CustomMaze':
@@ -169,13 +156,9 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
         DQN_model.learn(total_timesteps=max_step, log_interval=1, callback=TensorboardCallback(env, writer, agent_name, max_episode))
         return
     elif agent_name == 'PPO':
-        PPO_model = PPO('MlpPolicy', env, verbose=1)
-        PPO_model.learn(total_timesteps=max_step, log_interval=1, callback=TensorboardCallback(env, writer, agent_name, max_episode))
-        return
-    elif agent_name == 'PPO_2':
         env.num_envs = 1
-        PPO_model_2 = PPO('MlpPolicy', env, verbose=1)
-        PPO_model_2._setup_learn(
+        PPO_model = PPO('MlpPolicy', env, verbose=1)
+        PPO_model._setup_learn(
             total_timesteps=max_step,
             callback=TensorboardCallback(env, writer, agent_name, max_episode),
             reset_num_timesteps=True,
@@ -189,8 +172,8 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             raise Exception('TL_PPO only support CustomMaze environment')
 
         env.num_envs = 1
-        PPO_model_2 = PPO('MlpPolicy', env, verbose=1)
-        PPO_model_2._setup_learn(
+        PPO_model = PPO('MlpPolicy', env, verbose=1)
+        PPO_model._setup_learn(
             total_timesteps=max_step,
             callback=TensorboardCallback(env, writer, agent_name, max_episode),
             reset_num_timesteps=True,
@@ -204,8 +187,8 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
         env = old_env
     elif agent_name == 'FPER_PPO':
         env.num_envs = 1
-        PPO_model_2 = FPERPPOAgent('MlpPolicy', env, verbose=1, n_epochs=20)
-        PPO_model_2._setup_learn(
+        PPO_model = FPERPPOAgent('MlpPolicy', env, verbose=1, n_epochs=20)
+        PPO_model._setup_learn(
             total_timesteps=max_step,
             callback=TensorboardCallback(env, writer, agent_name, max_episode),
             reset_num_timesteps=True,
@@ -221,8 +204,8 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
         imitation_episodes = 300 # imitate learn the expert model for 100 episodes
         use_expert = True
         env.num_envs = 1
-        PPO_model_2 = PPO('MlpPolicy', env, verbose=1)
-        PPO_model_2._setup_learn(
+        PPO_model = PPO('MlpPolicy', env, verbose=1)
+        PPO_model._setup_learn(
             total_timesteps=max_step,
             callback=TensorboardCallback(env, writer, agent_name, max_episode),
             reset_num_timesteps=True,
@@ -230,39 +213,14 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             progress_bar=False,
         )
         n_steps = 0
-    elif agent_name == 'A2C':
-        A2C_model = A2C('MlpPolicy', env, verbose=1)
-        A2C_model.learn(total_timesteps=max_step, log_interval=1, callback=TensorboardCallback(env, writer, agent_name, max_episode))
-        return
-    elif agent_name == 'DT_PPO':    # use the action distribution of DT to initialize the PPO model
-        DT_PPO_model = DecisionTheoryGuidedPPOAgent('MlpPolicy', env, fix_seed=fix_seed, verbose=1)    # learning_rate=0.000000 for testing
-        DT_PPO_model.learn(total_timesteps=max_step, log_interval=1, callback=TensorboardCallback(env, writer, agent_name, max_episode))
-        return
-    elif agent_name == 'DT_PPO_2':  # use DT first to make decision (train PPO in background), then switch to PPO after certain episodes
-        if env_name == 'CustomMaze':
-            DT_agent = MazeDecisionTheoryAgent(env)
-            # DT_agent = MazeBFSAgent(env)
-        else:
-            DT_agent = DecisionTheoryAgent(env)
-        use_DT = True
-        env.num_envs = 1
-        PPO_model_2 = PPO('MlpPolicy', env, verbose=1)
-        PPO_model_2._setup_learn(
-            total_timesteps=max_step,
-            callback=TensorboardCallback(env, writer, agent_name, max_episode),
-            reset_num_timesteps=True,
-            tb_log_name="OnPolicyAlgorithm",
-            progress_bar=False,
-        )
-        n_steps = 0
-    elif agent_name == 'DT_PPO_3':  # use utilities of DT to combine with the output of PPO action network. Reduce the weight of utility gradually.
+    elif agent_name == 'DT_PPO':  # use utilities of DT to combine with the output of PPO action network. Reduce the weight of utility gradually.
         if env_name == 'CustomMaze':
             DT_agent = MazeDecisionTheoryAgent(env)
         else:
             DT_agent = DecisionTheoryAgent(env)
         env.num_envs = 1
-        PPO_model_3 = DecisionTheoryCombinedPPOAgent('MlpPolicy', env, DT_agent=DT_agent, verbose=1)
-        PPO_model_3._setup_learn(
+        DT_PPO_model = DecisionTheoryCombinedPPOAgent('MlpPolicy', env, DT_agent=DT_agent, verbose=1)
+        DT_PPO_model._setup_learn(
             total_timesteps=max_step,
             callback=TensorboardCallback(env, writer, agent_name, max_episode),
             reset_num_timesteps=True,
@@ -270,10 +228,6 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             progress_bar=False,
         )
         n_steps = 0
-    elif agent_name == 'BFS_PPO':
-        BFS_PPO_model = BFSGuidedPPOAgent('MlpPolicy', env, verbose=1)
-        BFS_PPO_model.learn(total_timesteps=max_step, log_interval=1, callback=TensorboardCallback(env, writer, agent_name, max_episode))
-        return
     else:
         pass
 
@@ -296,9 +250,9 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             # DT agent use the discrete observation instead of mapped observation. dds
             if info.get('discrete_obs') is not None:
                 obs = info['discrete_obs']
-        elif agent_name == 'PPO_2' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO' or agent_name == 'IL_PPO':
+        elif agent_name == 'PPO' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO' or agent_name == 'IL_PPO':
             # add a dimension to the observation
-            PPO_model_2._last_obs = np.expand_dims(obs, axis=0)
+            PPO_model._last_obs = np.expand_dims(obs, axis=0)
 
         terminated = False
         truncated = False
@@ -312,23 +266,21 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
                 action = BFS_agent.get_action(obs)
             elif agent_name == 'DQN':
                 action, _states = DQN_model.predict(obs)
-            elif agent_name == 'PPO':
-                action, _states = PPO_model.predict(obs)
-            elif agent_name == 'PPO_2' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO':
-                if PPO_model_2.use_sde and PPO_model_2.sde_sample_freq > 0 and n_steps % PPO_model_2.sde_sample_freq == 0:
+            elif agent_name == 'PPO' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO':
+                if PPO_model.use_sde and PPO_model.sde_sample_freq > 0 and n_steps % PPO_model.sde_sample_freq == 0:
                     # Sample a new noise matrix
-                    PPO_model_2.policy.reset_noise(env.num_envs)
+                    PPO_model.policy.reset_noise(env.num_envs)
                 with torch.no_grad():
                     # Convert to pytorch tensor or to TensorDict
-                    obs_tensor = obs_as_tensor(PPO_model_2._last_obs, PPO_model_2.device)
-                    actions, values, log_probs = PPO_model_2.policy(obs_tensor)
+                    obs_tensor = obs_as_tensor(PPO_model._last_obs, PPO_model.device)
+                    actions, values, log_probs = PPO_model.policy(obs_tensor)
                 actions = actions.cpu().numpy()
 
                 # Rescale and perform action
                 clipped_actions = actions
                 # Clip the actions to avoid out of bound error
-                if isinstance(PPO_model_2.action_space, gym.spaces.Box):
-                    clipped_actions = np.clip(actions, PPO_model_2.action_space.low, PPO_model_2.action_space.high)
+                if isinstance(PPO_model.action_space, gym.spaces.Box):
+                    clipped_actions = np.clip(actions, PPO_model.action_space.low, PPO_model.action_space.high)
                 action = clipped_actions
             elif agent_name == 'IL_PPO':
                 if episode >= imitation_episodes and use_expert:
@@ -338,22 +290,22 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
 
                 # expert model make decision
                 if use_expert:
-                    expert_action, _states = expert_PPO_model.predict(PPO_model_2._last_obs)
+                    expert_action, _states = expert_PPO_model.predict(PPO_model._last_obs)
 
-                if PPO_model_2.use_sde and PPO_model_2.sde_sample_freq > 0 and n_steps % PPO_model_2.sde_sample_freq == 0:
+                if PPO_model.use_sde and PPO_model.sde_sample_freq > 0 and n_steps % PPO_model.sde_sample_freq == 0:
                     # Sample a new noise matrix
-                    PPO_model_2.policy.reset_noise(env.num_envs)
+                    PPO_model.policy.reset_noise(env.num_envs)
                 with torch.no_grad():
                     # Convert to pytorch tensor or to TensorDict
-                    obs_tensor = obs_as_tensor(PPO_model_2._last_obs, PPO_model_2.device)
-                    PPO_actions, values, log_probs = PPO_model_2.policy(obs_tensor)
+                    obs_tensor = obs_as_tensor(PPO_model._last_obs, PPO_model.device)
+                    PPO_actions, values, log_probs = PPO_model.policy(obs_tensor)
                 PPO_actions = PPO_actions.cpu().numpy()
 
                 # Rescale and perform action
                 clipped_actions = PPO_actions
                 # Clip the actions to avoid out of bound error
-                if isinstance(PPO_model_2.action_space, gym.spaces.Box):
-                    clipped_actions = np.clip(PPO_actions, PPO_model_2.action_space.low, PPO_model_2.action_space.high)
+                if isinstance(PPO_model.action_space, gym.spaces.Box):
+                    clipped_actions = np.clip(PPO_actions, PPO_model.action_space.low, PPO_model.action_space.high)
                 PPO_actions = clipped_actions
                 if use_expert:
                     action = expert_action
@@ -361,61 +313,25 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
                 else:
                     action = PPO_actions
                     actions = PPO_actions
-
-            elif agent_name == 'A2C':
-                action, _states = A2C_model.predict(obs)
             elif agent_name == 'DT_PPO':
-                action, _states = DT_PPO_model.predict(obs)
-            elif agent_name == 'DT_PPO_2':
-                # DT agent make decision
-                DT_action = DT_agent.get_action(obs)
-
                 # PPO agent make decision
-                if PPO_model_2.use_sde and PPO_model_2.sde_sample_freq > 0 and n_steps % PPO_model_2.sde_sample_freq == 0:
+                if DT_PPO_model.use_sde and DT_PPO_model.sde_sample_freq > 0 and n_steps % DT_PPO_model.sde_sample_freq == 0:
                     # Sample a new noise matrix
-                    PPO_model_2.policy.reset_noise(env.num_envs)
+                    DT_PPO_model.policy.reset_noise(env.num_envs)
                 with torch.no_grad():
                     # Convert to pytorch tensor or to TensorDict
-                    obs_tensor = obs_as_tensor(PPO_model_2._last_obs, PPO_model_2.device)
-                    PPO_actions, values, log_probs = PPO_model_2.policy(obs_tensor)
+                    obs_tensor = obs_as_tensor(DT_PPO_model._last_obs, DT_PPO_model.device)
+                    PPO_actions, values, log_probs = DT_PPO_model.policy(obs_tensor)
                 PPO_actions = PPO_actions.cpu().numpy()
                 # Rescale and perform action
                 clipped_actions = PPO_actions
                 # Clip the actions to avoid out of bound error
-                if isinstance(PPO_model_2.action_space, gym.spaces.Box):
-                    clipped_actions = np.clip(PPO_actions, PPO_model_2.action_space.low, PPO_model_2.action_space.high)
-                PPO_actions = clipped_actions
-
-                if use_DT:
-                    if episode > transfer_time_point:  # switch to PPO after this episodes
-                        use_DT = False
-                    action = DT_action
-                    actions = np.array([DT_action])
-                else:
-                    action = PPO_actions
-                    actions = PPO_actions
-            elif agent_name == 'DT_PPO_3':
-                # PPO agent make decision
-                if PPO_model_3.use_sde and PPO_model_3.sde_sample_freq > 0 and n_steps % PPO_model_3.sde_sample_freq == 0:
-                    # Sample a new noise matrix
-                    PPO_model_3.policy.reset_noise(env.num_envs)
-                with torch.no_grad():
-                    # Convert to pytorch tensor or to TensorDict
-                    obs_tensor = obs_as_tensor(PPO_model_3._last_obs, PPO_model_3.device)
-                    PPO_actions, values, log_probs = PPO_model_3.policy(obs_tensor)
-                PPO_actions = PPO_actions.cpu().numpy()
-                # Rescale and perform action
-                clipped_actions = PPO_actions
-                # Clip the actions to avoid out of bound error
-                if isinstance(PPO_model_3.action_space, gym.spaces.Box):
-                    clipped_actions = np.clip(PPO_actions, PPO_model_3.action_space.low, PPO_model_3.action_space.high)
+                if isinstance(DT_PPO_model.action_space, gym.spaces.Box):
+                    clipped_actions = np.clip(PPO_actions, DT_PPO_model.action_space.low, DT_PPO_model.action_space.high)
                 PPO_actions = clipped_actions
 
                 action = PPO_actions
                 actions = PPO_actions
-
-            elif agent_name == 'BFS_PPO':
-                action, _states = BFS_PPO_model.predict(obs)
             else:
                 action = env.action_space.sample()
             # count the action
@@ -424,7 +340,7 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             # print("action: ", action, type(action))
             new_obs, reward, terminated, truncated, info = env.step(action)
             # print("new_obs: ", new_obs, type(new_obs), "reward: ", reward, type(reward), "terminated: ", terminated, type(terminated), "truncated: ", truncated, type(truncated), "info: ", info, type(info))
-            if agent_name == 'DT' or agent_name == 'BFS' or agent_name == 'DT_PPO_2' or agent_name == 'DT_PPO_3':
+            if agent_name == 'DT' or agent_name == 'BFS' or agent_name == 'DT_PPO':
                 # DT agent use the discrete observation instead of mapped observation.
                 if info.get('discrete_obs') is not None:
                     new_obs = info['discrete_obs']
@@ -439,69 +355,63 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
                 DT_agent.update_observation(obs, action, new_obs, reward)
             elif agent_name == 'BFS':
                 BFS_agent.update_observation(obs, action, new_obs, reward)
-            elif agent_name == 'PPO_2' or agent_name == 'DT_PPO_2' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO' or agent_name == 'IL_PPO':
-                if agent_name == 'DT_PPO_2':
-                    DT_agent.update_observation(obs, action, new_obs, reward)
+            elif agent_name == 'PPO' or agent_name == 'TL_PPO' or agent_name == 'FPER_PPO' or agent_name == 'IL_PPO':
 
-                PPO_model_2.num_timesteps += env.num_envs
+                PPO_model.num_timesteps += env.num_envs
 
                 # PPO_model_2._update_info_buffer(truncated, info)
                 n_steps += 1
 
-                if isinstance(PPO_model_2.action_space, gym.spaces.Discrete):
+                if isinstance(PPO_model.action_space, gym.spaces.Discrete):
                     # Reshape in case of discrete action
                     actions = actions.reshape(-1, 1)
 
-                PPO_model_2.rollout_buffer.add(
-                    PPO_model_2._last_obs,
+                PPO_model.rollout_buffer.add(
+                    PPO_model._last_obs,
                     actions, reward,
-                    PPO_model_2._last_episode_starts,
+                    PPO_model._last_episode_starts,
                     values, log_probs)
-                PPO_model_2._last_obs = np.expand_dims(new_obs, axis=0)
-                PPO_model_2._last_episode_starts = np.expand_dims(terminated, axis=0)
+                PPO_model._last_obs = np.expand_dims(new_obs, axis=0)
+                PPO_model._last_episode_starts = np.expand_dims(terminated, axis=0)
 
-                if PPO_model_2.rollout_buffer.full:
+                if PPO_model.rollout_buffer.full:
                     if episode > 100:   # This is a hack to enable the new env after 100 episodes when memory buffer is full
                         buffer_full = True
 
-                    PPO_model_2.rollout_buffer.compute_returns_and_advantage(last_values=values, dones=terminated)
+                    PPO_model.rollout_buffer.compute_returns_and_advantage(last_values=values, dones=terminated)
                     print("train PPO here")
-                    print("train episode", PPO_model_2.n_epochs)
-                    if 'use_DT' in locals():
-                        print("use_DT: ", use_DT)
-                    PPO_model_2.policy.set_training_mode(True)
-                    PPO_model_2.train()  # For training the model
-                    PPO_model_2.policy.set_training_mode(False)
-                    PPO_model_2.rollout_buffer.reset()
+                    print("train episode", PPO_model.n_epochs)
+                    PPO_model.policy.set_training_mode(True)
+                    PPO_model.train()  # For training the model
+                    PPO_model.policy.set_training_mode(False)
+                    PPO_model.rollout_buffer.reset()
                     n_steps = 0
-            elif agent_name == 'DT_PPO_3':
-                PPO_model_3.policy.DT_agent.update_observation(obs, action, new_obs, reward) if PPO_model_3.policy.DT_agent is not None else None
+            elif agent_name == 'DT_PPO':
+                DT_PPO_model.policy.DT_agent.update_observation(obs, action, new_obs, reward) if DT_PPO_model.policy.DT_agent is not None else None
 
-                PPO_model_3.num_timesteps += env.num_envs
+                DT_PPO_model.num_timesteps += env.num_envs
 
                 n_steps += 1
 
-                if isinstance(PPO_model_3.action_space, gym.spaces.Discrete):
+                if isinstance(DT_PPO_model.action_space, gym.spaces.Discrete):
                     # Reshape in case of discrete action
                     actions = actions.reshape(-1, 1)
-                PPO_model_3.rollout_buffer.add(
-                    PPO_model_3._last_obs,
+                DT_PPO_model.rollout_buffer.add(
+                    DT_PPO_model._last_obs,
                     actions, reward,
-                    PPO_model_3._last_episode_starts,
+                    DT_PPO_model._last_episode_starts,
                     values, log_probs)
-                PPO_model_3._last_obs = np.expand_dims(new_obs, axis=0)
-                PPO_model_3._last_episode_starts = np.expand_dims(terminated, axis=0)
+                DT_PPO_model._last_obs = np.expand_dims(new_obs, axis=0)
+                DT_PPO_model._last_episode_starts = np.expand_dims(terminated, axis=0)
 
-                if PPO_model_3.rollout_buffer.full:
-                    PPO_model_3.rollout_buffer.compute_returns_and_advantage(last_values=values, dones=terminated)
+                if DT_PPO_model.rollout_buffer.full:
+                    DT_PPO_model.rollout_buffer.compute_returns_and_advantage(last_values=values, dones=terminated)
                     print("train PPO here")
-                    print("train episode", PPO_model_3.n_epochs)
-                    if 'use_DT' in locals():
-                        print("use_DT: ", use_DT)
-                    PPO_model_3.policy.set_training_mode(True)
-                    PPO_model_3.train()  # For training the model
-                    PPO_model_3.policy.set_training_mode(False)
-                    PPO_model_3.rollout_buffer.reset()
+                    print("train episode", DT_PPO_model.n_epochs)
+                    DT_PPO_model.policy.set_training_mode(True)
+                    DT_PPO_model.train()  # For training the model
+                    DT_PPO_model.policy.set_training_mode(False)
+                    DT_PPO_model.rollout_buffer.reset()
                     n_steps = 0
 
 
@@ -534,8 +444,8 @@ def run_simulation(agent_name, env_discrete_version, env_name, max_episode, max_
             writer.add_scalar('action_count/agent: {}, action: {}'.format(agent_name, i),
                               action_count_per_episode[i], episode)
 
-        if agent_name == 'DT_PPO_3':
-            writer.add_scalar('others/u_weight in DT_PPO_3', PPO_model_3.policy.u_weight, episode)
+        if agent_name == 'DT_PPO':
+            writer.add_scalar('others/u_weight in DT_PPO_3', DT_PPO_model.policy.u_weight, episode)
 
         reward_history.append(accumulated_reward)
         episode += 1
@@ -564,44 +474,33 @@ def tb_reducer_mean_calculation(env_discrete_version_set, agent_name_set, transf
     print("path: ", path)
     for env_discrete_version in env_discrete_version_set:
         for agent_name in agent_name_set:
-            if agent_name != 'DT_PPO_2':
-                read_path = path + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/*'
-                write_path = path + 'tb_reduce/' + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/'
-                print("read_path: ", read_path)
-                print("write_path: ", write_path)
-                os.system('tb-reducer {} -o {} -r mean --handle-dup-steps \'mean\' --lax-step --lax-tags'.format(read_path, write_path))
-            else:
-                for transfer_time_point in transfer_time_point_set:
-                    read_path = path + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/transfer_time_point_' + str(transfer_time_point) + '/*'
-                    write_path = path + 'tb_reduce/' + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/transfer_time_point_' + str(transfer_time_point) + '/'
-                    print("read_path: ", read_path)
-                    print("write_path: ", write_path)
-                    os.system('tb-reducer {} -o {} -r mean --handle-dup-steps \'mean\' --lax-step --lax-tags'.format(read_path, write_path))
-
+            read_path = path + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/*'
+            write_path = path + 'tb_reduce/' + env_name + '/agent_' + agent_name + '/env_discrete_ver_' + str(env_discrete_version) + '/'
+            print("read_path: ", read_path)
+            print("write_path: ", write_path)
+            os.system('tb-reducer {} -o {} -r mean --handle-dup-steps \'mean\' --lax-step --lax-tags'.format(read_path, write_path))
 
 
 
 if __name__ == '__main__':
     # configure the simulation
-    number_of_simulation = 100
-    env_discrete_version_set = [1] #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] #[1, 2, 3, 4, 5, 6, 7, 8, 9]  # check discrete_cartpole_env_old.py and discrete_pendulum_env.py for the version number
-    max_episode = 500 #1000
+    number_of_simulation = 4 # 100
+    env_discrete_version_set = [3] #[1, 2, 3, 4, 5, 6, 7, 8] # for CustomMaze, this is the size of the maze. For SlightlyModifiedCartPole, this is the max step for each episode.
+    max_episode = 30 #500 #1000
     max_step = 2250000 #250000  # if max_episode is reached before max_step, the simulation will stop.
-    agent_name_set = ['IL_PPO'] #['DT', 'DQN', 'DT_PPO_3', 'PPO_2']  # choose agents from ['DT', 'BFS', 'random', 'DQN', 'PPO', 'PPO_2', 'A2C', 'DT_PPO', 'DT_PPO_2', 'DT_PPO_3', 'BFS_PPO', 'TL_PPO', 'FPER_PPO', 'IL_PPO']
-    transfer_time_point_set = [100] # the time point to transfer from DT to PPO [10, 30, 50, 70, 100, 200, 300, 400, 500, 600]
-    env_name = 'SlightlyModifiedCartPole'  # choose environment from 'SlightlyModifiedCartPole', 'CustomCartPole', 'CustomPendulum', 'CustomMaze'
+    # For SlightlyModifiedCartPole, choose from ['random', 'DT', 'DQN', 'PPO', 'FPER_PPO', 'IL_PPO', 'DT_PPO']. For CustomMaze, choose from ['random', 'DT', 'DQN', 'BFS', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO']
+    agent_name_set = ['random', 'DT', 'DQN', 'BFS', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO']
+    transfer_time_point_set = [100]
+    env_name = 'CustomMaze'  # choose environment from 'SlightlyModifiedCartPole', 'CustomMaze'
     fix_seeds = [np.random.randint(0, 100000) for i in range(number_of_simulation)]
     fix_seed = 123 # None means random seed, otherwise fix the seed to a specific number.
 
     single_test = False # set to True to run a single simulation
     if single_test:
         # single run test
-        test_agent = 'IL_PPO'
+        test_agent = 'random'
         env_discrete_version = 1
-        if test_agent == 'DT_PPO_2':
-            transfer_time_point = 10
-        else:
-            transfer_time_point = 0
+        transfer_time_point = 0
         start_time = time.time()
         run_simulation(test_agent, env_discrete_version, env_name, max_episode, max_step, fix_seed, transfer_time_point)
         # save running time (in second) to file
@@ -617,17 +516,14 @@ if __name__ == '__main__':
         for agent_name in agent_name_set:
             for env_discrete_version in env_discrete_version_set:
                 print("run simulation: ", agent_name, env_discrete_version, 'seeds:', fix_seeds)
-                if agent_name != 'DT_PPO_2':
-                    _transfer_time_point_set = [0]
-                else:
-                    _transfer_time_point_set = transfer_time_point_set
+                _transfer_time_point_set = [0]
 
                 for transfer_time_point in _transfer_time_point_set:
                     # run the simulation in parallel, change the number of processes to match the number of CPU cores
                     pool = mp.Pool(mp.cpu_count())
                     start_time = time.time()
                     for i in range(number_of_simulation):
-                        time.sleep(2)
+                        time.sleep(3)
                         print("run simulation: ", i)
                         pool.apply_async(run_simulation, args=(agent_name, env_discrete_version, env_name, max_episode, max_step, fix_seeds[i], transfer_time_point))
                     pool.close()
