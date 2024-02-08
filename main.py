@@ -484,21 +484,21 @@ def tb_reducer_mean_calculation(env_discrete_version_set, agent_name_set, transf
 
 if __name__ == '__main__':
     # configure the simulation
-    number_of_simulation = 4 # 100
+    number_of_simulation = 100
     env_discrete_version_set = [3] #[1, 2, 3, 4, 5, 6, 7, 8] # for CustomMaze, this is the size of the maze. For SlightlyModifiedCartPole, this is the max step for each episode.
-    max_episode = 30 #500 #1000
-    max_step = 2250000 #250000  # if max_episode is reached before max_step, the simulation will stop.
+    max_episode = 500
+    max_step = 2250000  # if max_episode is reached before max_step, the simulation will stop.
     # For SlightlyModifiedCartPole, choose from ['random', 'DT', 'DQN', 'PPO', 'FPER_PPO', 'IL_PPO', 'DT_PPO']. For CustomMaze, choose from ['random', 'DT', 'DQN', 'BFS', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO']
-    agent_name_set = ['random', 'DT', 'DQN', 'BFS', 'PPO', 'TL_PPO', 'FPER_PPO', 'DT_PPO']
+    agent_name_set = ['random', 'DT', 'DQN', 'PPO', 'FPER_PPO', 'IL_PPO', 'DT_PPO']
     transfer_time_point_set = [100]
-    env_name = 'CustomMaze'  # choose environment from 'SlightlyModifiedCartPole', 'CustomMaze'
+    env_name = 'SlightlyModifiedCartPole'  # choose environment from 'SlightlyModifiedCartPole', 'CustomMaze'
     fix_seeds = [np.random.randint(0, 100000) for i in range(number_of_simulation)]
     fix_seed = 123 # None means random seed, otherwise fix the seed to a specific number.
 
     single_test = False # set to True to run a single simulation
     if single_test:
         # single run test
-        test_agent = 'random'
+        test_agent = 'IL_PPO'
         env_discrete_version = 1
         transfer_time_point = 0
         start_time = time.time()
