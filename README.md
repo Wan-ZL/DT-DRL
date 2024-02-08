@@ -1,8 +1,8 @@
-<img src="DT-guided DRL.png" align="right" width="40%"/>
-
 # Decision Theory-Guided Deep Reinforcement Learning for Fast Learning
 
 Welcome to the official GitHub repository for the research paper "Decision Theory-Guided Deep Reinforcement Learning for Fast Learning". This project is at the forefront of combining Decision Theory with Deep Reinforcement Learning (DRL) to overcome the cold start problem, a notorious challenge in the realm of DRL applications.
+
+<img src="DT-guided DRL.png" align="right" width="50%"/>
 
 ## Research Abstract
 
