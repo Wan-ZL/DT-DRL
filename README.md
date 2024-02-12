@@ -15,6 +15,18 @@ This paper introduces a novel approach, Decision Theory-guided Deep Reinforcemen
 - **Maze Navigation**: In the maze problem, DT-guided DRL consistently outperformed existing approaches across various maze sizes, showcasing its adaptability and effectiveness in complex environments with sparse rewards.
 - **Structured Exploration**: The integration of decision theory not only provided effective initial guidance for the DRL agents but also contributed to a more structured and informed exploration strategy, particularly in environments with large state spaces and intricate navigational challenges.
 
+Please check out our paper to learn more:
+[Decision Theory-Guided Deep Reinforcement Learning for Fast Learning](https://arxiv.org/abs/2402.06023).
+
+```
+@article{Wan2024dtdrl,
+  title={Decision Theory-Guided Deep Reinforcement Learning for Fast Learning},
+  author={Wan, Zelin and Cho, Jin-Hee and Zhu, Mu and Anwar, Ahmed H and Kamhoua, Charles A and Singh, Munindar P},
+  journal={arXiv 2402.06023},
+  year={2024}
+}
+```
+
 ## Repository Notes
 
 - **`main.py`**: The central script for executing simulations. Adjust the simulation parameters within the `if __name__ == '__main__':` section to tailor the experiments to your requirements.
